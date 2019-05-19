@@ -1,89 +1,58 @@
-open Graphics;;
+let width = 1600 
+let height = 900
+let rectSize = 2
 
-let x = ref 0
-let y = ref 0
-let xVel = ref 1
-let yVel = ref 1
-let size = 20
+let timeLastTick = ref 0.0
+let frameTime = 1.0 /. 60.0
+let delta = ref 0.0
 
-let initWindow () = 
-    open_graph "";
-    set_window_title "Rectangles";
-    set_color blue;
-    fill_rect !x !y size size
-    
+let frameCounter = ref 0
+let timeLastSecond = ref 0.0
 
-let clear_window color = 
-    let fg = foreground 
-    in
-        set_color color;
-        fill_rect 0 0 (size_x ()) (size_y ());
-        set_color fg
+let timeLogic = ref 0.0
+let timeRender = ref 0.0
 
-let controlBounds () =
-    if !x > size_x () then
-        (
-        x := size_x (); 
-        xVel := !xVel * (-1);
-        )
-    else ();
-
-    if !x < 0 then
-        (
-        x := 0;
-        xVel := !xVel * (-1);
-        )
-    else ();
-
-    if !y > size_y () then
-        (
-        y := size_y (); 
-        yVel := !yVel * (-1);
-        )
-    else ();
-
-    if !y < 0 then
-    (
-        y := 0;
-        yVel := !yVel * (-1);
-    )
-    else ();
-
+let setDeltaTime () = 
+    delta := Sys.time () -. !timeLastTick;
+    timeLastTick := Sys.time ();
     ()
 
+let delay () =
+    let elapsedTime = Sys.time () -. !timeLastTick in
+    if elapsedTime < frameTime then
+        Unix.sleepf (frameTime -. elapsedTime)
+    else ()
 
-let update speed = 
-    x := !x + speed * !xVel;
-    y := !y + speed * !yVel;
+let printFPS () =
+    incr frameCounter;
+    if (!timeLastSecond +. 1.0) < Sys.time () then begin
+        print_endline ("FPS: " ^ (string_of_int !frameCounter));
+        print_endline ("TimeLogic: " ^ (string_of_float !timeLogic));
+        print_endline ("TimeRender: " ^ (string_of_float !timeRender));
+        frameCounter := 0;
+        timeLastSecond := Sys.time ()
+    end
+    else ()
+
+let tick rectangles = 
+    printFPS();
+    setDeltaTime ();
+    (*let rectangles = Logic.update rectangles !delta in*)
+    let timeStart = Sys.time () in
+    Logic.update rectangles !delta;
+    timeLogic := !timeLogic +. (Sys.time ()) -. timeStart;
+    let timeStart = Sys.time () in
+    Draw.draw rectangles;
+    timeRender := !timeRender +. (Sys.time ()) -. timeStart;
+    delay ()
     
-    controlBounds ()
-    (*let coordsString = "x: " ^ (string_of_int !x) ^ ", y: " ^ (string_of_int !y) in
-    print_endline coordsString;
-    let velsString = "xVel: " ^ (string_of_int !xVel) ^ ", yVel: " ^ (string_of_int !yVel) in
-    print_endline velsString*)
-
-let draw () = 
-    clear_window black;
-    set_color blue;
-    fill_rect !x !y size size
-
-let rec delay depth = 
-    if depth = 0 then
-        ()
-    else
-        delay (depth - 1)
-
-let tick frameSpeed = 
-    update 1;
-    draw ();
-    delay (1000000000 / frameSpeed)
-    
-
-let start () = 
-    initWindow ();
-    let rec loop () = 
-        tick 1000;
-        loop () 
+let start numRectangles = 
+    Random.self_init ();
+    Draw.initWindow width height rectSize;
+    let rectangles = Logic.initRectangles numRectangles width height rectSize in
+    let rec loop rectangles = 
+        tick rectangles;
+        loop rectangles
     in 
-    try loop ()
-    with Graphic_failure _ -> print_endline "Exiting..."
+    try loop rectangles
+    with Failure _ -> print_endline "Exiting..."

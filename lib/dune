@@ -1,4 +1,4 @@
 (library
     (name lib)
-    (libraries graphics)
+    (libraries graphics unix)
 )
